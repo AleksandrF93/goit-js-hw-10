@@ -11,46 +11,49 @@ const refs = {
     countryList: document.querySelector('.country-list') 
 }
 
+refs.searchForm.addEventListener('input', debounce(onSearch, DEBOUNCE_DELAY));
+
 function onSearch(e) {
     e.preventDefault();
-    const searchCountry = e.target.value.trim();
-    if (!searchCountry.length) {
-        clinPage();
+    clinPage();
+    let searchCountry = e.target.value.trim();
+    if (!searchCountry) {
+        Notiflix.Notify.info('Type country name.');
         return;
     }
     API.fetchCountry(searchCountry)
-        .then(country => {
-            clinPage();
-            countryReceived(country);
+        .then((countries) => {
+            console.log(countries)
+            if (countries.length > 10) {
+                Notiflix.Notify.info('Too many matches found. Please enter a more specific name.'); 
+            }
+            if (countries.length > 1 && countries.length <= 10) {
+                renderList(countries);
+            }
+             else if (countries.length === 1) {
+                renderCountry(countries[0]);
+            }
         })
         .catch(onError);
 };
-refs.searchForm.addEventListener('input', debounce(onSearch, DEBOUNCE_DELAY));
 
-const countryReceived = array => {
-    if (array.length > 10) {
-    Notiflix.Notify.info('Too many matches found. Please enter a more specific name.');
-    } else if (array.length > 1 && array.length <= 10) {
-    renderList(array);
-    } else if (array.length === 1) {
-    renderCountry(array[0]);
-}
+function renderList(countries) {
+    const elements = countries.map(country => {
+    return `<li class="country-list__item"><img src=${country.flags.svg} alt="Flag of country" width="40">
+    <h2 class="country-list__header">${country.name.common}</h2> </li>`;
+    }).join('');
+    refs.countryList.insertAdjacentHTML('afterbegin', elements);
 };
-const renderList = array => {
-    const elements = array
-    .map(({ name, flag }) => {
-    return `<li class="country-list__item"><img src=${flag} alt="Flag of country" width="40">
-    <h2 class="country-list__header">${name}</h2> </li>`;
-    })
-.join('');
-refs.countryList.insertAdjacentHTML('beforeend', elements);
-};
-const renderCountry = ({ name, flag, population, languages, capital }) => {
-const markup = `<p><h2><img src=${flag} alt="Flag of country" width="40"> ${name} </h2></p>
-<p><span class="country-info__header">Capital:</span> ${capital}</p>
-<p><span class="country-info__header">Population:</span> ${population}</p>
-<p><span class="country-info__header">Languages:</span> ${languages[0].name}</p>`;
-refs.countryInfo.insertAdjacentHTML('beforeend', markup);
+
+function renderCountry(country) {
+    const lang = Object.values(country.languages);
+    const markup = ` <div class="country-list__item"><img src=${country.flags.svg} alt="Flag of country" width="40"><h2 class="country-list__header">${country.name.common} </h2></div>
+<p><span class="country-info__header">Capital:</span> ${country.capital}</p>
+<p><span class="country-info__header">Population:</span> ${country.population}</p>
+
+<p><span class="country-info__header">Languages:</span> ${lang}</p>`;
+
+refs.countryInfo.insertAdjacentHTML('afterbegin', markup);
 };
 
 function clinPage() {
@@ -58,8 +61,7 @@ function clinPage() {
     refs.countryList.innerHTML = '';
 }
 
-
 function onError() {
     clinPage();
-    Notiflix.Notify.failure('Oops there is no country with that name');
+    Notiflix.Notify.failure('Oops, there is no country with that name');
 }
